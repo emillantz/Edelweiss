@@ -1,24 +1,18 @@
 # coding=utf-8
 # Author Emil Lantz
-# Based on original C script by Erik Månsson & Hannes Björk
-
-# Main läge, kör clock()
-
-# Om pin 27 jordas, Starta stopwatch(), vänta 3 sekunder sen kolla condition
-
-# Jordas pin GPIO-27, return till clock()
 
 from gpiozero import LED, Button
 from datetime import datetime
 import time
 import spidev
 
-#TODO Dokumentera koden bättre
-
 # All numbers are GPIO-pin numbers, not pinout.
 load = LED(20)
 reset = LED(21)
 timerButton = Button(4)
+# Default values for load & reset
+load.off()
+reset.on()
 #Initialize SPI
 spi = spidev.SpiDev()
 spi.open(0, 0)
@@ -35,7 +29,7 @@ BCD-coding for 7-bit-displays.
 00100000: Right top
 01000000: Top
 
-10000000: Semicolon (Denna är troligtvis direktkopplad till dot-leddarna)
+10000000: Semicolons between pairs (e.g. HH:MM)
 
 These values combine as a single 8 bit binary value to represent 
 numbers on the 7-segment-displays. e.g. the value of 0 is 01111110,
@@ -53,7 +47,6 @@ digits = [
     0b01111111, #8
     0b01111011, #9
 ]
-
 semicolon = 0b10000000 #Semicolons
 
 # Takes single digits from array in main loop and returns the BCD-code for each digit 
@@ -65,10 +58,6 @@ def clockToCode(n):
            returnValues.append(digits[nbr])
     return returnValues
 
-# Default values for load & reset
-load.off()
-reset.on()
-
 # Returns current time as int[] HH, MM, SS
 def clock():
     currentTime = datetime.now()
@@ -77,6 +66,7 @@ def clock():
     seconds = int(currentTime.strftime("%S"))
     return(hours, minutes, seconds)
 
+# Displays time in stopwatch format MM-SS-MS
 def stopwatch():
     zero = time.time()
     while True:
@@ -92,7 +82,7 @@ def stopwatch():
             displayTime(displayCode)
             return
 
-#Ge lite timerfeeling när funktionen är slut
+# Function for statically displaying final stopwatch-time
 def displayTime(currentTimeCode):
     a = 0b0000000
     empty = [a]*6
@@ -102,6 +92,7 @@ def displayTime(currentTimeCode):
         digitToDisplays(empty)
         time.sleep(0.4)
 
+# Writes data to 7-segment-displays via raspberry SPI
 def digitToDisplays(a):
     spi.writebytes(a)
     load.on()
@@ -120,5 +111,8 @@ while True:
             displayCode[n] = displayCode[n] | semicolon
     digitToDisplays(displayCode)
 
+# Conditions for extension-functions (WIP)
+
+# Enter stopwatch-function when start button is pressed.
     if timerButton.is_pressed:
         stopwatch()
