@@ -26,7 +26,7 @@ spi.open(0, 0)
 spi.max_speed_hz = 1000
 
 '''
-NBCD-coding for 7-bit-displays.
+BCD-coding for 7-bit-displays.
 
 00000001: Middle
 00000010: Left top
@@ -57,19 +57,20 @@ digits = [
 
 semicolon = 0b10000000 #Semicolons
 
-
+# Takes single digits from array in main loop and returns the BCD-code for each digit 
+# to be passed into the SPI
 def clockToCode(n):
     returnValues = []
     for nbr in n:
        returnValues.append(digits[nbr])
     return returnValues
-    
+
 # Default values for load & reset
 load.off()
 reset.on()
 print(yellow_button.value)
 
-# Returns current time as int HH, MM, SS
+# Returns current time as int[] HH, MM, SS
 def clock():
     currentTime = datetime.now()
     hours = int(currentTime.strftime("%H"))
@@ -81,14 +82,25 @@ def clock():
 def stopwatch():
     zero = time.time()
     while True:
-        #Minimum time set to 2 seconds to avoid exiting the function due to holding the button.
-        print(round(time.time() - zero, 2))
-
+        mins = int((time.time() - zero) // 60)
+        sec = int((time.time() - zero) // 1 % 60)
+        ms = int(round((time.time() - zero) % 1, 2) * 100)
         # Sleep for 0.005s as that is half the minimum interval stopwatch will show. 
         # More accuracy is redundant and will only slow the raspberry down.
         time.sleep(0.005)
-        if(time.time() - zero > 2 and yellow_button.value == 0):
+        clockValues = [mins // 10, mins % 10, sec // 10, sec % 10, ms // 10, ms % 10]
+        displayCode = clockToCode(clockValues)
+        displayCode[1] = displayCode[1] | semicolon
+        displaycode[5] = displayCode[5] | semicolon
+        digitToDisplays(displayCode)
+        #Minimum time set to 2 seconds to avoid exiting the function due to holding the button.
+        if(time.time() - zero > 2 and yellow_button.value == 1):
+            displayTime()
             return
+
+#Ge lite timerfeeling när funktionen är slut
+def displayTime():
+
 
 def digitToDisplays(a):
         spi.writebytes(a)
@@ -97,15 +109,16 @@ def digitToDisplays(a):
         load.off()
         time.sleep(0.005)
 
+# Main loop. All extension-functions should return here. 
 while True:
     time.sleep(0.01) #0.01
     hms = clock()
     clockValues = [hms[0] // 10, hms[0] % 10, hms[1] // 10, hms[1] % 10, hms[2] // 10, hms[2] % 10]
-    codeToDisplay = clockToCode(clockValues)
+    displayCode = clockToCode(clockValues)
     for n in range(6):
         if(n % 4 == 1 and hms[2] % 2 == 0):
-            codeToDisplay[n] = codeToDisplay[n] | semicolon
-    
-    digitToDisplays(codeToDisplay)
+            displayCode[n] = displayCode[n] | semicolon
+    digitToDisplays(displayCode)
+
     if yellow_button.value == 1:
         stopwatch()
