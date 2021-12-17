@@ -1,4 +1,5 @@
 # Author Emil Lantz
+# Based on original C script by Erik Månsson & Hannes Björk
 
 # Main läge, kör clock()
 
@@ -56,9 +57,16 @@ digits = [
 
 semicolon = 0b10000000 #Semicolons
 
+
+def clockToCode(n):
+    returnValues = []
+    for nbr in n:
+       returnValues.append(digits[nbr])
+    return returnValues
+    
 # Default values for load & reset
-load = 0
-reset = 1
+load.off()
+reset.on()
 print(yellow_button.value)
 
 # Returns current time as int HH, MM, SS
@@ -83,23 +91,21 @@ def stopwatch():
             return
 
 def digitToDisplays(a):
-    for i in range(6):
-        spi.xfer2(a)
-    pass
+        spi.writebytes(a)
+        load.on()
+        time.sleep(0.005)
+        load.off()
+        time.sleep(0.005)
 
-i = 0
 while True:
-    time.sleep(2) #0.01
+    time.sleep(0.01) #0.01
     hms = clock()
     clockValues = [hms[0] // 10, hms[0] % 10, hms[1] // 10, hms[1] % 10, hms[2] // 10, hms[2] % 10]
+    codeToDisplay = clockToCode(clockValues)
+    for n in range(6):
+        if(n % 4 == 1 and hms[2] % 2 == 0):
+            codeToDisplay[n] = codeToDisplay[n] | semicolon
     
-    dig = 0
-    for n in clockValues:
-        if(dig % 4 == 1):
-            digits[n] = digits[n] | semicolon
-        digitToDisplays(digits[n])
-        dig += 1
-
-        print(digits[n])
+    digitToDisplays(codeToDisplay)
     if yellow_button.value == 1:
         stopwatch()
